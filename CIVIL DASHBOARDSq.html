@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Dynamic Load</title>
+
+        <style>
+            .markDetails {
+                display: none;
+                position: fixed;
+                width: 1000px;
+                height: 430px;
+                margin: auto;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
+                padding: 1em 1em;
+                zoom: 1;
+                background-color: white;
+                font-family: "Trebuchet MS", Helvetica, sans-serif;
+                font-size: 12px;
+                /*border-radius: 25px;*/
+                border: 1px solid rgb(128, 128, 128);
+                -webkit-box-shadow: 7px 7px 5px 0px rgba(50, 50, 50, 0.75);
+                -moz-box-shadow: 7px 7px 5px 0px rgba(50, 50, 50, 0.75);
+                box-shadow: 7px 7px 5px 0px rgba(50, 50, 50, 0.75);
+            }
+
+            #HTML_Table_To_Display {
+                border-collapse: collapse;
+                width: 100%;
+            }
+
+                #HTML_Table_To_Display table, th {
+                    font-weight: bold;
+                    background-color: #DAE8FB;
+                }
+
+                #HTML_Table_To_Display table, td, th {
+                    border: 1px solid #ddd;
+                    text-align: center;
+                }
+        </style>
+
+        <script type="text/javascript" src="https://public.tableau.com/javascripts/api/tableau-2.min.js"></script>
+
+        <script type="text/javascript">            
+	var vizList = ["https://iportaltab.njcourts.gov/t/Civil/views/CivilDashboards_1/1_1BACKLOGCASES?iframeSizedToWindow=true&:embed=y&:showAppBanner=false&:display_count=no&:showVizHome=no"]
+            var viz,
+                vizLen = vizList.length,
+                vizCount = 0;        
+			var Sele_Viz='init';
+						
+			<!-- get json data to excel report. -->
+        
+            var tab_text, x, jData, i, jsonObj;
+            var data_type   = 'data:application/vnd.ms-excel';            
+            
+            var Backlog_Col_1 = "VENUE";
+            var Backlog_Col_2 = "TRACK";
+            var Backlog_Col_3 = "CASE <br/> TYPE";
+            var Backlog_Col_4 = "DOCKET";
+            var Backlog_Col_5 = "TITLE";
+            var Backlog_Col_6 = "DISCOVERY <br/> END DATE";
+            var Backlog_Col_7 = "# OF <br/> DISC <br/> EXT";
+            var Backlog_Col_8 = "# OF <br/> DISC <br/> DAYS";
+            var Backlog_Col_9 = "LAST <br/> PROCED <br/> DATE";
+            var Backlog_Col_10= "LAST <br/> PROCED <br/> TYPE";
+            var Backlog_Col_11= "# OF <br/> ARB <br/> ADJ";
+            var Backlog_Col_12= "# OF <br/> TRIAL <br/> ADJ";
+            var Backlog_Col_13= "AGE <br/> (MNTH)";
+            var Backlog_Col_14= "JUDGE ID";
+
+            var Pending_Col_1 = "VENUE";
+            var Pending_Col_2 = "CASE <br/> TYPE";
+            var Pending_Col_3 = "DOCK <br/> TYPE";
+            var Pending_Col_4 = "DOCKET";
+            var Pending_Col_5 = "DOCK <br/> YEAR";
+            var Pending_Col_6 = "CASE_TITLE";
+            var Pending_Col_7 = "FILED";
+            var Pending_Col_8 = "TRACK";
+            var Pending_Col_9 = "CASE AGE <br/> MONTHS";
+            var Pending_Col_10= "JUDGE ID";
+            var Pending_Col_11= "BACKLOG";
+            var Pending_Col_12= "PROCEEDING";
+            var Pending_Col_13= "PROCEEDING <br/> DATE";
+
+            var htmlTableBacklog = '<table><thead><tr align="justify" bgcolor="#666666" style="font-style:normal;color:white;"> ' +
+			                     '<td>' + Backlog_Col_1 + '</td> <td>' + Backlog_Col_2+ '</td>' +
+                                 '<td valign="bottom">' + Backlog_Col_3 + '</td> <td>' + Backlog_Col_4+ '</td>' +
+                                 '<td>' + Backlog_Col_5 + '</td> <td>' + Backlog_Col_6+ '</td>' +
+                                 '<td>' + Backlog_Col_7 + '</td> <td>' + Backlog_Col_8+ '</td>' +
+                                 '<td>' + Backlog_Col_9 + '</td> <td>' + Backlog_Col_10+ '</td>' +
+                                 '<td>' + Backlog_Col_11+ '</td> <td>' + Backlog_Col_12+ '</td>' +
+                                 '<td>' + Backlog_Col_13+ '</td> <td>' + Backlog_Col_14+ '</td>' + ' </tr></thead><tbody>';
+
+            var htmlTablePending = '<table><thead><tr align="justify" bgcolor="#666666" style="font-style:normal;color:white;"> ' +
+			                     '<td>' + Pending_Col_1 + '</td> <td>' + Pending_Col_2+ '</td>' +
+                                 '<td valign="bottom">' + Pending_Col_3 + '</td> <td>' + Pending_Col_4+ '</td>' +
+                                 '<td>' + Pending_Col_5 + '</td> <td>' + Pending_Col_6+ '</td>' +
+                                 '<td>' + Pending_Col_7 + '</td> <td>' + Pending_Col_8+ '</td>' +
+                                 '<td>' + Pending_Col_9 + '</td> <td>' + Pending_Col_10+ '</td>' +
+                                 '<td>' + Pending_Col_11+ '</td> <td>' + Pending_Col_12+ '</td>' +
+                                 '<td>' + Pending_Col_13+ '</td> </tr></thead><tbody>';
+
+            function CreateViz(vizPlusMinus) {
+                var vizDiv = document.getElementById("vizContainer"),
+                    options = {
+                        //width: '1680px',
+                        //height: '850px',
+                        width: vizDiv.offsetWidth,
+                        height: vizDiv.offsetHeight,
+                        hideTabs: true,
+                        hidetoolbar: true,
+						onFirstInteractive: function () {
+							listenToMarksSelection();
+						}
+                    };
+
+                vizCount = vizCount + vizPlusMinus;
+
+                if (vizCount >= vizLen) {
+                // Keep the vizCount in the bounds of the array index.
+                    vizCount = 0;
+                } else if (vizCount < 0) {
+                    vizCount = vizLen - 1;
+                }
+
+                if (viz) { // If a viz object exists, delete it.
+                    viz.dispose();
+                }
+                
+                var vizURL = vizList[vizCount];
+                viz = new tableau.Viz(vizDiv, vizURL, options);
+            }
+           
+			function listenToMarksSelection() {
+				viz.addEventListener(tableau.TableauEventName.MARKS_SELECTION, onMarksSelection);
+			}
+		
+			function onMarksSelection(marksEvent) {
+				var ws = marksEvent.getWorksheet();
+				var ws_name = ws.getName();
+				Sele_Viz=ws_name;				
+				//alert("In fn. onMarksSelection:" + Sele_Viz);
+				if (Sele_Viz == 'BAN Cases Over 3 Yrs Old' || Sele_Viz == 'BAN BACKLOG COUNT/ALL' || Sele_Viz == 'BAN Total Pending Cases')  {
+					return marksEvent.getMarksAsync().then(reportSelectedMarks);
+				}
+			}			        
+
+			function reportSelectedMarks(marks) {
+
+				var html = "";
+				//alert("In fn. reportSelectedMarks : " + Sele_Viz);
+				for (var markIndex = 0; markIndex < marks.length; markIndex++) {
+					var pairs = marks[markIndex].getPairs();
+										
+					html += "<table>";
+                    
+					for (var pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
+						var pair = pairs[pairIndex];							
+						html += "<tr><td style='text-align:right;color:#555555;font-size:12px;font-weight:bold'>" + pair.fieldName + " :</td>" + "<td style='padding-left:4px;font-size:12px;color:#f28e2b;font-weight:bold'>" + pair.formattedValue + "</td></tr>";
+					}
+
+					html += "<table>";
+				}
+				
+				//show the poup div
+				var infoDiv = document.getElementById('markDetails');
+				infoDiv.style.display = "inline";
+				
+				//add the content to poup div
+				//document.getElementById('markDetailsGrid').innerHTML = html;
+				if (Sele_Viz == 'BAN Cases Over 3 Yrs Old') {				
+					ViewDataOnPage('DOWNLOAD DATA TABLE BACKLOG');
+				}	
+				else if (Sele_Viz == 'BAN Total Pending Cases') {				
+					ViewDataOnPage('DOWNLOAD DATA TABLE PENDING');	
+				}	
+				else if (Sele_Viz == 'BAN BACKLOG COUNT/ALL') {				
+					ViewDataOnPage('DOWNLOAD DATA TABLE BACKLOG');
+				}
+				else
+				{
+				    alert('Unknown'); 
+				}
+			}
+
+			function ViewDataOnPage(TableNametoExtractData) {
+			
+                sheet = viz.getWorkbook().getActiveSheet();
+				
+                if (sheet.getSheetType() === 'worksheet') {
+                    sheet.getSummaryDataAsync(options).then(function (t) {
+                        // buildMenu(t);
+                    });                    
+                }
+                else {  //if active sheet is a dashboard get data from a specified sheet					
+                    worksheetArray = viz.getWorkbook().getActiveSheet().getWorksheets();
+					//alert(TableNametoExtractData);
+                    for (var i = 0; i < worksheetArray.length; i++) {
+                        worksheet = worksheetArray[i];
+                        sheetName = worksheet.getName();
+						
+                        if (sheetName == TableNametoExtractData) {						
+                            options = {
+                                maxRows: 0, // Max rows to return. Use 0 to return all rows
+                                ignoreAliases: false,
+                                ignoreSelection: true,
+                                includeAllColumns: false
+                            };
+							//alert("Inside");
+                            worksheetArray[i].getSummaryDataAsync(options).then(function (Tableau_Data) {
+                                //var Tableau_Data_Column_Names = t.getColumns();
+								//var Tableau_Data_Rows = t.getData();                                
+                                                                
+                                // List the columns and their positions in the dataset
+                                //for(j=0;j<Tableau_Data_Column_Names.length;j++){                                    
+                                //    ColName = Tableau_Data_Column_Names[j].getFieldName();									
+                                //    ColIndex = Tableau_Data_Column_Names[j].getIndex();                                    
+                                //    alert( ColName + " is in position " + ColIndex);
+                                //}                                
+
+                                //var sheetJsonData = JSON.stringify(Tableau_Data_Rows);
+								
+                                //table = t;
+
+                                //alert(convertTableObjectToArray(table, 'formatted'));
+                                //buildSimpleHTMLTable(table, 'formatted', "markDetailsGrid");
+
+								BuildSimpleHTMLTable(Tableau_Data, 'value', "markDetailsGrid")                                
+                            }
+						);
+						}
+                    }
+                }
+            }
+
+			function BuildSimpleHTMLTable(SheetDataObj, Formatted_or_Value, Element_ID_to_Insert_into){
+                var HTML_Table = Construct_HTML_Table_from_Tableau_Object(SheetDataObj, Formatted_or_Value);
+                HTML_Table.id = 'HTML_Table_To_Display';
+
+				//This is important to empty out table object. Else it keeps on appending new table rows to old.
+				document.getElementById(Element_ID_to_Insert_into).innerHTML='';
+
+                // Add any other properties you'd like here
+                document.getElementById(Element_ID_to_Insert_into).appendChild(HTML_Table);
+            }
+			
+            function Construct_HTML_Table_from_Tableau_Object(sheetDataObj, formatted_or_value){
+                var column_header_array = convertColumnsObjectToArrayOfNames(sheetDataObj);
+                var table_body_array = convertTableObjectToArray(sheetDataObj, formatted_or_value);
+ 
+                var table = document.createElement('table');
+                var tableHead = document.createElement('thead');
+                
+                //alert('Creating Header');
+                for(var i=0; i < column_header_array.length; i++){				           
+                    var th = document.createElement('th');
+                    th.appendChild(document.createTextNode(column_header_array[i]));
+					//alert(th);
+                    tableHead.appendChild(th);
+                }
+                //tableHead.appendChild(th);
+                table.appendChild(tableHead);
+ 
+                var tableBody = document.createElement('tbody');
+
+				//alert('creating rows');
+                table_body_array.forEach(function(rowData) {
+                    var row = document.createElement('tr');
+                    rowData.forEach(function(cellData) {
+                        var cell = document.createElement('td');
+					//alert(cellData);
+					//alert(cellData.length);
+                        cell.appendChild(document.createTextNode(cellData));
+
+                        row.appendChild(cell);
+                    }); 
+                    tableBody.appendChild(row);
+                });
+ 
+                table.appendChild(tableBody);
+                return table; 
+            }
+						
+
+            function convertTableObjectToArray(sheetDataObj, formatted_or_value){
+                // This is an array of objects,
+                data = sheetDataObj.getData();
+                final_table = new Array();
+                //console.log(data.length);
+                for(var i=0; i < data.length; i++){
+                    final_table[i] = new Array();
+                    for(var j=0; j < data[i].length; j++){
+                        if (formatted_or_value.toLowerCase() === 'formatted'){
+                            final_table[i][j] = data[i][j].formattedValue;
+                        }
+                        else if (formatted_or_value.toLowerCase() === 'value'){
+                            final_table[i][j] = data[i][j].value;
+                        }
+                    }
+                }
+                return final_table;
+            }
+
+            function convertColumnsObjectToArrayOfNames(sheetDataObj){
+			//The Columns have A_... B_... prefixed to keep aphabetic order by JS API. 
+			//Also suffixed by "(For Download)". So these both need to be removed before showing in the popup.
+                col_obj = sheetDataObj.getColumns();
+                col_array = new Array();
+				var ColumnName;
+				var DelimiterPosition;
+                for (var k=0; k < col_obj.length; k++){					
+					ColumnName = col_obj[k].getFieldName();
+					DelimiterPosition = ColumnName.indexOf("_");
+					if (DelimiterPosition != -1) {
+						col_array[k] = ColumnName.substring(DelimiterPosition+1,ColumnName.length);	
+						if (Sele_Viz == 'BAN Cases Over 3 Yrs Old') {
+							col_array[k] = col_array[k].replace("(For Download Backlog)",''); 
+						}	
+						else if (Sele_Viz == 'BAN Total Pending Cases') {				
+							col_array[k] = col_array[k].replace("(For Download Pending)",'');	
+						}	
+						else if (Sele_Viz == 'BAN BACKLOG COUNT/ALL') {				
+							col_array[k] = col_array[k].replace("(For Download Backlog)",'');
+						}
+					}
+					else{
+						col_array[k] = ColumnName;
+					}
+					//alert(col_array[k]);
+                }
+                //console.log(col_array);
+                return col_array;
+            }
+
+            // jQuery DataTables columns takes an array of objects, each with a title property
+            function convertColumnsObjectToDataTablesConfigOptionArray(sheetDataObj){
+                col_obj = sheetDataObj.getColumns();
+                col_array = new Array();
+                for (var k=0; k < col_obj.length; k++){
+                    col_array[k] = { title : col_obj[k].getFieldName() };
+                }
+                //console.log(col_array);
+                return col_array;
+            }			          
+
+            function DownloadData(TableNametoExtractData) {
+
+                sheet = viz.getWorkbook().getActiveSheet();
+				//alert("DownloadData : " + Sele_Viz);
+				if (Sele_Viz == 'BAN Cases Over 3 Yrs Old') {				
+					TableNametoExtractData = 'DOWNLOAD DATA TABLE BACKLOG';
+				}	
+				else if (Sele_Viz == 'BAN BACKLOG COUNT/ALL') {				
+					TableNametoExtractData = 'DOWNLOAD DATA TABLE BACKLOG';	
+				}		
+				else if (Sele_Viz == 'BAN Total Pending Cases') {				
+					TableNametoExtractData = 'DOWNLOAD DATA TABLE PENDING';	
+				}
+				else {
+				    alert('Unknown'); 
+				}
+
+                if (sheet.getSheetType() === 'worksheet') {
+                    sheet.getSummaryDataAsync(options).then(function (t) {
+                        // buildMenu(t);
+                    });                    
+                }
+                else {  //if active sheet is a dashboard get data from a specified sheet
+                    worksheetArray = viz.getWorkbook().getActiveSheet().getWorksheets();
+                    for (var i = 0; i < worksheetArray.length; i++) {
+                        worksheet = worksheetArray[i];
+                        sheetName = worksheet.getName();
+						
+                        if (sheetName == TableNametoExtractData) {						
+						//alert(sheetName);
+                            options = {
+                                maxRows: 0, // Max rows to return. Use 0 to return all rows
+                                ignoreAliases: false,
+                                ignoreSelection: true,
+                                includeAllColumns: false
+                            };
+                            worksheetArray[i].getSummaryDataAsync(options).then(function (t) {
+                                var data = t.getData();
+                                var columns = t.getColumns();
+                                                                
+                                // List the columns and their positions in the dataset
+                                for(j=0;j<columns.length;j++){                                    
+                                    ColName = columns[j].getFieldName();
+                                    ColIndex = columns[j].getIndex();                                    
+                                    //alert( ColName + " is in position " + ColIndex);
+                                }                                
+
+                                var sheetJsonData = JSON.stringify(data);
+                                table = t;
+
+                                //alert(convertTableObjectToArray(table, 'formatted'));
+                                // Export to excel 
+                                ExportToExcel(JSON.parse(sheetJsonData));
+                            });
+                        }
+                    }
+                }
+            }
+
+            // Export json to excel report
+            function ExportToExcel(jsonObj )  {
+                //alert(jsonObj.length);                
+				
+				if (Sele_Viz == 'BAN Cases Over 3 Yrs Old') {				
+					TableNametoExtractData = 'DOWNLOAD DATA TABLE BACKLOG';
+					htmlTable = htmlTableBacklog ;
+				}	
+				else if (Sele_Viz == 'BAN BACKLOG COUNT/ALL') {				
+					TableNametoExtractData = 'DOWNLOAD DATA TABLE BACKLOG';	
+					htmlTable = htmlTablePending;
+				}		
+				else if (Sele_Viz == 'BAN Total Pending Cases') {		
+				//alert("Downloading Pending Data");
+					TableNametoExtractData = 'DOWNLOAD DATA TABLE PENDING';	
+					htmlTable = htmlTablePending;
+				}
+				else {
+				    alert('Unknown'); 
+				}
+
+                for ( x in jsonObj) {
+                    jData = jsonObj[x];      
+                    for (i in jData) {      
+                        htmlTable += '<td align="center">' + jData[i].formattedValue + '</td>';                        
+                    }                                  
+                    htmlTable += '<tr></tr>'
+                }
+                htmlTable += "</tbody></table>";
+
+                tab_text = '<html xmlns:x="urn:schemas-microsoft-com:office:excel">';
+                tab_text = tab_text + '<head><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>';
+                // sheet name
+                tab_text = tab_text + '<x:Name>aoc report</x:Name>';
+                tab_text = tab_text + '<x:WorksheetOptions><x:Panes></x:Panes></x:WorksheetOptions></x:ExcelWorksheet>';
+                tab_text = tab_text + '</x:ExcelWorksheets></x:ExcelWorkbook></xml></head><body>';
+
+                tab_text = tab_text + "<table border='1px'>";
+                tab_text = tab_text + htmlTable;
+                tab_text = tab_text + '</table></body></html>';
+
+                data_type = 'data:application/vnd.ms-excel';
+                // file name
+                var filename = "jsontoexcel.xls";
+                // download 
+                
+                if(window.navigator.msSaveBlob) {
+                    var blob = new Blob([tab_text], {
+                        type: data_type
+                    });
+                    
+                    navigator.msSaveBlob(blob, filename);
+                }
+                else
+                {                    
+                    var blob = new Blob([tab_text], {
+                    type: data_type
+                    });
+                    
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.style = 'visibility:hidden';                    
+                    link.download = filename;                  
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+
+            function ExportToPDF() {
+                viz.showExportPDFDialog();                
+            } 
+
+			// close the popup window
+			function closeWindow() {
+				document.getElementById('markDetails').style.display = "none";				
+			}
+        </script>
+    </head>
+    <body onload="CreateViz(0);">
+        <div id="vizContainer" style="width:1680px; height:850px;" ></div>
+
+        <div id="dataTarget"></div>        
+        <div id="markDetails" class="markDetails">
+			<div style="float:right;vertical-align:top;padding-bottom:8px;" >
+                <button onclick="closeWindow();">Close</button> 
+				<button onclick="DownloadData()">Download</button>
+				
+            </div>
+            <div id="markDetailsGrid" style="width:1000px;height:400px;overflow:hidden;overflow-y:scroll;overflow-x:scroll">
+            </div>
+            
+        </div>
+    </body>
+</html>
+
